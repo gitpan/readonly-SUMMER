@@ -1,0 +1,5 @@
+readonly.pm
+t/readonly.t
+MANIFEST
+Makefile.PL
+README
