@@ -9,7 +9,7 @@ WriteMakefile(
     'DISTNAME'     => 'readonly',
     ($] >= 5.005 ?
         (
-            ABSTRACT => 'Pragma to create readonly scalars in the current namespace',
+            ABSTRACT => 'Pragma & function module to create readonly scalars',
             AUTHOR   => 'Mark Summerfield <summer@perlpress.com>',
         ) : () ),
     'LIBS'         => [''],   # e.g., '-lm'

@@ -112,78 +112,20 @@ eval {
 } ;
 report( 'readonly', 0, $@, __LINE__ ) ;
 
-#eval {
-#    readonly->new( '$K' => '/tmp' ) ;
-#    # Must use K twice to avoid used only once warning & must use ::, no idea
-#    # why!
-#    die "\$K ne '/tmp'" if $::K and $::K ne '/tmp' ;
-#} ;
-#report( 'readonly', 0, $@, __LINE__ ) ;
-#
-#eval {
-#    readonly->new(
-#        '$E101' => 'tartrazine',
-#        '$E160' => 'carotene',
-#        ) ;
-#    my $dummy = $::E101 ; # avoid used only once warning
-#    $::E101 = 5 ;
-#} ;
-#report( 'readonly', 1, $@, __LINE__ ) ;
-
-
-### We can't run these because they cause warnings of fatal errors that cannot
-### be trapped
-
-#eval {
-#    no readonly '$X' ;
-#} ;
-#report( 'readonly', 1, $@, __LINE__ ) ;
-
-#eval {
-#    no readonly ;
-#} ;
-#report( 'readonly', 1, $@, __LINE__ ) ;
-
-#eval {
-#    use readonly 
-#            '$A1' => 'A1',
-#            '$M1' => 'M1',
-#            '$M4' => 'M4',
-#            '$M5'
-#            ;
-#} ;
-#report( 'readonly', 1, $@, __LINE__ ) ;
-
-
-#eval {
-#    $@ = undef ;
-#    use readonly '$QQ' => 'abc\\' ; 
-#    # $QQ is NOT created.
-#} ;
-#report( 'readonly', 0, $@, __LINE__ ) ;
-
-#eval {
-#    $@ = undef ;
-#    use readonly '$EXE'  => "/usr/bin" ;
-#} ;
-#report( 'redefinition', 1, $@, __LINE__ ) ;
-
-#eval {
-#    use readonly '$R' ;
-#} ;
-#report( 'novalue', 1, $@, __LINE__ ) ;
-
-#eval {
-#    $@ = undef ;
-#    use readonly 'R' => 99 ;
-#} ;
-#report( 'no dollar', 1, $@, __LINE__ ) ;
-
-#eval {
-#    use readonly '$ARGV' => 99 ;
-#} ;
-#report( '$ARGV', 1, $@, __LINE__ ) ;
-
+=pod
+# These generate spurious warnings in 5.004
+eval {
+    use vars qw( $E101 $E160 ) ;
+    ( $E101, $E160 ) = qw( tartrazine carotine ) ;
+    readonly->set(  '$E101', '$E160' ) ; # Generates a spurious warning in 5.004
+    $E101 = 5 ;
+} ;
+report( 'readonly', 1, $@, __LINE__ ) ;
+eval {
+    die "E101=$E101 E160=$E160" if $E101 ne 'tartrazine' or $E160 ne 'carotine' ;
+} ;
+report( 'readonly', 0, $@, __LINE__ ) ;
+=cut
 
 
 

@@ -1,3 +1,119 @@
+package readonly ;    # Documented at the __END__.
+
+# $Id: readonly.pm,v 1.4 2000/05/21 15:49:07 root Exp root $
+
+use strict ;
+
+use Carp qw( croak carp ) ;
+
+use vars qw( $VERSION ) ;
+$VERSION = '1.05' ;
+
+my %unwise = map { $_ => undef } qw(
+                    BEGIN INIT CHECK END DESTROY AUTOLOAD 
+                    STDIN STDOUT STDERR ARGV ARGVOUT ENV INC SIG
+                    ) ;
+
+*new = \&import ; # Deprecated; kept for backward compatibility
+
+sub import {
+    return $VERSION if @_ == 1 ;
+
+    croak "usage: use readonly '\$SCALAR'=>value; # remember to single quote the scalar name" 
+    if @_ < 3 or not defined $_[1] or not defined $_[2] ;
+
+    shift ; # Get rid of the 'class'.
+
+    my $pkg = caller ;
+
+    while( defined( my $name = shift ) ) {
+
+        croak "readonly: scalar `$name' has no value" unless @_ ;
+
+        my( $uname ) = $name =~ /^\$?(_?[^\W_0-9]\w*)$/o ; # Untaint name
+
+        croak "readonly: cannot make `\$$name' readonly"      
+        if not defined $uname or exists $unwise{$uname} ;
+
+        my $val = shift ;
+        # No need to check for undef "can't" arise at this point.
+
+        unless( $val =~ /^\d+$/o                 or
+                $val =~ /^0b[01]+$/o             or
+                $val =~ /^0x[\dAaBbCcDdEeFf]+$/o or
+                ( $val =~ /^[\d.eE]+$/o and 
+                  $val =~ tr/\././ <= 1 and $val =~ tr/[eE]/e/ <= 1 ) ) {
+            $val = "'$val'" ; # String, e.g. hash key
+        }
+        
+        # We now untaint $val.
+        # If it was a number, i.e. matched any of the patterns above then it
+        # is safe to untaint; if it was a string, well, we've enclosed it in
+        # non-interpolating single quotes so again it is safe. (If a string
+        # ends in a \ the readonly scalar will not be created.)
+        my( $uval ) = $val =~ /^(.*)$/o ; # Untaint val 
+
+        if( eval "exists \$${pkg}::{$uname}" ) { 
+            carp "readonly: cannot change readonly scalar `\$$name'" ;
+        }
+        else {
+            eval "*${pkg}::$uname=\\$uval" ;
+            croak "readonly: failed to create readonly scalar `\$$name'" 
+            unless eval "exists \$${pkg}::{$uname}" ; 
+        }
+    }
+}
+
+
+sub set {
+    croak "usage: readonly->set '\$SCALAR'; # remember to single quote the scalar name" 
+    if @_ < 2 or not defined $_[1] ;
+
+    shift ; # Get rid of the 'class'.
+
+    my $pkg = caller ;
+
+    while( defined( my $name = shift ) ) {
+        my( $uname ) = $name =~ /^\$?(_?[^\W_0-9]\w*)$/o ; # Untaint name
+
+        croak "readonly: cannot make `\$$name' readonly" 
+        if exists $unwise{$uname} ;
+
+        croak "readonly: cannot set non-existent scalar `\$$uname' readonly"
+        unless eval "exists \$${pkg}::{$uname}" ; 
+
+        my $val = eval "\$${pkg}::$uname" ;
+        unless( $val =~ /^\d+$/o                 or
+                $val =~ /^0b[01]+$/o             or
+                $val =~ /^0x[\dAaBbCcDdEeFf]+$/o or
+                ( $val =~ /^[\d.eE]+$/o and 
+                  $val =~ tr/\././ <= 1 and $val =~ tr/[eE]/e/ <= 1 ) ) {
+            $val = "'$val'" ; # String, e.g. hash key
+        }
+        my( $uval ) = $val =~ /^(.*)$/o ; # Untaint val 
+
+        eval "*${pkg}::$uname=\\$uval" ;
+    }
+}
+
+
+sub unimport {
+
+    if( @_ == 1 ) {
+        carp "readonly: noop" ;
+    }
+    else {
+        my $s = @_ > 2 ? 's' : '' ;
+        carp "readonly: cannot undefine readonly scalar$s" ;
+    }
+}
+
+
+1 ;
+
+
+__END__
+
 =head1 NAME
 
 readonly - Perl pragma and function module to create readonly scalars 
@@ -119,7 +235,7 @@ existing scalar readonly:
     $BLUE   = '#0000FF' ;
     $YELLOW = '#FFFF00' ;
 
-    readonly->set( '$RED', '$GREEN', '$BLUE', '$YELLOW' ) ;
+    readonly->set( '$RED', '$GREEN', '$BLUE', '$YELLOW ) ;
 
 =head1 BUGS
 
