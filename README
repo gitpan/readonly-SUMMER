@@ -1,6 +1,6 @@
 =head1 NAME
 
-readonly - Perl module to create readonly scalars at compile-time or run-time
+readonly - Perl pragma to create readonly scalars 
 
 =head1 SYNOPSIS
 
@@ -192,8 +192,7 @@ can be coded as:
     sub WEB_ADDRESS() { 'www.perlpress.com' } # No semi-colon.
 
 However, C<readonly> allows us to create many readonly scalars in one go with
-a compact syntax, and whereas C<constant> is compile time only, with
-C<readonly> we can choose compile time or run time:
+a compact syntax:
 
     use readonly    # Compile time
             '$HOME' => '/home/summer',

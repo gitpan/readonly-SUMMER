@@ -1,13 +1,13 @@
 package readonly ;    # Documented at the __END__.
 
-# $Id: readonly.pm,v 1.8 2000/04/17 22:02:24 root Exp root $
+# $Id: readonly.pm,v 1.9 2000/04/17 22:27:38 root Exp root $
 
 use strict ;
 
 use Carp qw( croak carp ) ;
 
 use vars qw( $VERSION ) ;
-$VERSION = '1.03' ;
+$VERSION = '1.04' ;
 
 my %unwise = map { $_ => undef } qw(
                     BEGIN INIT CHECK END DESTROY AUTOLOAD 
@@ -19,8 +19,7 @@ my %unwise = map { $_ => undef } qw(
 sub import {
     return $VERSION if @_ == 1 ;
 
-    croak "usage: use readonly '\$SCALAR'=>value; OR ".
-          "readonly->new('\$SCALAR',value); # remember to single quote the scalar" 
+    croak "usage: use readonly '\$SCALAR'=>value; # remember to single quote the scalar" 
     if @_ < 3 or not defined $_[1] or not defined $_[2] ;
 
     shift ; # Get rid of the 'class'.
@@ -58,7 +57,7 @@ sub import {
         # If it was a number, i.e. matched any of the patterns above then it
         # is safe to untaint; if it was a string, well, we've enclosed it in
         # non-interpolating single quotes so again it is safe. (If a string
-        # which ends in a \ the readonly scalar will not be created.)
+        # ends in a \ the readonly scalar will not be created.)
         my( $uval ) = $val =~ /^(.*)$/o ; # Untaint val 
 
         if( eval "defined \$${pkg}::$uname" ) { 
@@ -93,7 +92,7 @@ __END__
 
 =head1 NAME
 
-readonly - Perl module to create readonly scalars at compile-time or run-time
+readonly - Perl pragma to create readonly scalars 
 
 =head1 SYNOPSIS
 
@@ -285,8 +284,7 @@ can be coded as:
     sub WEB_ADDRESS() { 'www.perlpress.com' } # No semi-colon.
 
 However, C<readonly> allows us to create many readonly scalars in one go with
-a compact syntax, and whereas C<constant> is compile time only, with
-C<readonly> we can choose compile time or run time:
+a compact syntax:
 
     use readonly    # Compile time
             '$HOME' => '/home/summer',
