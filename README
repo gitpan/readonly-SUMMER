@@ -1,8 +1,10 @@
 =head1 NAME
 
-readonly - Perl pragma to declare readonly scalars
+readonly - Perl module to create readonly scalars at compile-time or run-time
 
 =head1 SYNOPSIS
+
+    ##### Compile time
 
     use readonly 
             '$READONLY' => 57,
@@ -19,13 +21,24 @@ readonly - Perl pragma to declare readonly scalars
             ;
 
     # Have to use a separate readonly if we refer back.
-    use readonly
-            '$RC'   => "$EXE/config",
-            ;
+    use readonly '$RC'  => "$EXE/config" ;
+
+    ##### Run time (possible but not recommended)
+
+    use readonly () ; # If no previous pragma calls.
+
+    readonly->new( 
+        '$BACKGROUND'   => param( 'green' ),
+        '$FOREGROUND'   => param( 'white' ),
+        '$HIGHLIGHT'    => param( 'yellow' ),
+        ) ;
 
 =head1 DESCRIPTION
 
-This pragma creates readonly scalars in the current namespace. The scalars
+The readonly module can be used either as a compile-time pragma or a run-time
+class module.
+
+This module creates readonly scalars in the current namespace. The scalars
 thus created may be used in all contexts where read/write scalars would be
 used with the exception that you will get an C<eval> trappable run-time error
 "Modification of a read-only value attempted..." if you try to assign to a
@@ -35,16 +48,17 @@ Of course there is already a pragma, C<constant>, which provides this kind of
 functionality (and more, since C<constant> also handles arrays, hashes etc).
 However C<constant>s must be used with different syntax in different contexts,
 whereas C<readonly>s can be used with the same consistent scalar syntax
-throughout.
+throughout. Also C<readonly>s may be created either at compile-time I<or> at
+run-time.
 
 =head2 String Interpolation
 
-    use constant PI    => 4 * atan2 1, 1 ;
-    use readonly '$PI' => 4 * atan2 1, 1 ;
+    use constant PI    => 4 * atan2 1, 1 ; # Compile time
+    use readonly '$PI' => 4 * atan2 1, 1 ; # Compile time
 
 We can print C<readonly>s directly:
 
-    print "The value of pi is $PI\n" ;
+    print "The value of pi is $PI and pi^2 is $PI2\n" ;
 
 But for C<constant>s we must do this:
 
@@ -83,6 +97,15 @@ key the result is undef. Thus in this situation we would have to write:
 or perhaps:
 
     my $value = $topic{&TOPIC} ;
+
+=head2 Compile-time vs Run-time
+
+Creating readonly scalars at compile-time is the preferred approach. Sometimes
+however we only know what the readonly value will be after performing some of
+our execution; in such cases the run-time approach is possible. Be aware
+however that you may not be able to create a readonly scalar at run-time and
+that those you do create will almost certainly need to be used with their full
+package names.
 
 =head2 Error Messages 
 
@@ -127,6 +150,27 @@ two leading underscores or is in this list:
 Warning. This will occur for example if you try to set the value to be
 C<'abc\'> whose last character, C<\> might be problematic. 
 
+=item C<Global symbol "$SCALAR" requires explicit package name>
+
+Fatal error. For reasons I don't understand in some cases when you create a
+readonly scalar at run-time perl needs you to explicitly use the package name,
+e.g.
+
+    readonly->new( '$XCOORD' => 821, '$YCOORD' => 124 ) ;
+
+If you get this error message then (assuming we're in package main) use:
+
+    print "x = $::XCOORD\n" ;
+
+=item C<Noop>
+
+Warning. Occurs if you write C<no readonly> which has no semantics.
+
+=item C<Cannot undefine readonly scalar>
+
+Warning. Occurs if you write C<no readonly '$SCALAR'>. Undefining a readonly
+value would change it and is therefore not permitted.
+
 =back
 
 =head2 Do We Need It? 
@@ -148,9 +192,10 @@ can be coded as:
     sub WEB_ADDRESS() { 'www.perlpress.com' } # No semi-colon.
 
 However, C<readonly> allows us to create many readonly scalars in one go with
-a compact syntax:
+a compact syntax, and whereas C<constant> is compile time only, with
+C<readonly> we can choose compile time or run time:
 
-    use readonly
+    use readonly    # Compile time
             '$HOME' => '/home/summer',
             '$ROOT' => '/root',
             '$PERL' => '/usr/lib/perl',
@@ -159,6 +204,8 @@ a compact syntax:
 =head1 BUGS
 
 Only copes with scalars.
+
+In some tests with 5.004 C<readonly-E<gt>new> lead to spurious warnings.
 
 Sometimes with 5.004 when using eval exception handling you get "Use of
 uninitialized value at..." errors; the cure is to write:
@@ -169,10 +216,10 @@ uninitialized value at..." errors; the cure is to write:
 
 =head1 AUTHOR
 
-I copied some ideas from C<constant.pm>.
-
 Mark Summerfield. I can be contacted as <summer@perlpress.com> -
 please include the word 'readonly' in the subject line.
+
+I copied some ideas from C<constant.pm>.
 
 =head1 COPYRIGHT
 

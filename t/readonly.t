@@ -108,11 +108,41 @@ eval {
     use readonly '$PATH' => '/usr/opt' ;
     use readonly '$EXE'  => "$PATH/bin" ;
     die "\$PATH ne '/usr/opt'"    if $PATH ne '/usr/opt' ;
-    die "\$EXE ne '/usr/opt/bin'" if $EXE ne '/usr/opt/bin' ;
+    die "\$EXE ne '/usr/opt/bin'" if $EXE  ne '/usr/opt/bin' ;
 } ;
 report( 'readonly', 0, $@, __LINE__ ) ;
 
+#eval {
+#    readonly->new( '$K' => '/tmp' ) ;
+#    # Must use K twice to avoid used only once warning & must use ::, no idea
+#    # why!
+#    die "\$K ne '/tmp'" if $::K and $::K ne '/tmp' ;
+#} ;
+#report( 'readonly', 0, $@, __LINE__ ) ;
+#
+#eval {
+#    readonly->new(
+#        '$E101' => 'tartrazine',
+#        '$E160' => 'carotene',
+#        ) ;
+#    my $dummy = $::E101 ; # avoid used only once warning
+#    $::E101 = 5 ;
+#} ;
+#report( 'readonly', 1, $@, __LINE__ ) ;
 
+
+### We can't run these because they cause warnings of fatal errors that cannot
+### be trapped
+
+#eval {
+#    no readonly '$X' ;
+#} ;
+#report( 'readonly', 1, $@, __LINE__ ) ;
+
+#eval {
+#    no readonly ;
+#} ;
+#report( 'readonly', 1, $@, __LINE__ ) ;
 
 #eval {
 #    use readonly 
