@@ -1,13 +1,13 @@
 package readonly ;    # Documented at the __END__.
 
-# $Id: readonly.pm,v 1.3 2000/04/16 07:33:19 root Exp root $
+# $Id: readonly.pm,v 1.5 2000/04/16 15:55:11 root Exp root $
 
 use strict ;
 
 use Carp qw( croak carp ) ;
 
 use vars qw( $VERSION ) ;
-$VERSION = '1.01' ;
+$VERSION = '1.02' ;
 
 my %unwise = map { $_ => undef } qw(
                     BEGIN INIT CHECK END DESTROY AUTOLOAD 
@@ -27,43 +27,46 @@ sub import {
 
     while( defined( my $name = shift ) ) {
 
+        croak "Readonly scalar `$name' has no value" unless @_ ;
+
         if( substr( $name, 0, 1 ) eq '$' ) {
             $name = substr( $name, 1 ) ;
         }
         else {
-            carp "Scalar `$name' should begin with \$" ;
+            carp "Using readonly scalar `\$$name' instead of bare `$name'" ;
         }
 
         my( $uname ) = $name =~ /^(_?[^\W_0-9]\w*)$/o ; # Untaint name
 
-        croak "Cannot make $name readonly"      
+        croak "Cannot make `\$$name' readonly"      
         if not defined $uname or exists $unwise{$uname} or $uname =~ /^__/o ;
 
         my $val = shift ;
+        # No need to check for undef "can't" arise at this point.
 
-        if( $val =~ /^\d+$/o                 or
-            $val =~ /^0b[01]+$/o             or
-            $val =~ /^0x[\dAaBbCcDdEeFf]+$/o or
-            ( $val =~ /^[\d.eE]+$/o and 
-              $val =~ tr/\././ <= 1 and $val =~ tr/[eE]/e/ <= 1 ) ) {
-            $val = "$val" ;   # Number, e.g. array index
-            # $val is safe to untaint here because it can only match the
-            # numeric patterns listed above.
-        } 
-        else {
-            $val =~ tr,\\,, ;
+        unless( $val =~ /^\d+$/o                 or
+                $val =~ /^0b[01]+$/o             or
+                $val =~ /^0x[\dAaBbCcDdEeFf]+$/o or
+                ( $val =~ /^[\d.eE]+$/o and 
+                  $val =~ tr/\././ <= 1 and $val =~ tr/[eE]/e/ <= 1 ) ) {
             $val = "'$val'" ; # String, e.g. hash key
-            # $val is safe to untaint here because it is enclosed in
-            # non-interpolating single quotes and we have taken the paranoid
-            # approach and removed any backslashes from the string.
         }
-
+        
+        # We now untaint $val.
+        # If it was a number, i.e. matched any of the patterns above then it
+        # is safe to untaint; if it was a string, well, we've enclosed it in
+        # non-interpolating single quotes so again it is safe. (If a string
+        # which ends in a \ the readonly scalar will not be created.)
         my( $uval ) = $val =~ /^(.*)$/o ; # Untaint val 
-        croak "Value `$val' cannot be made readonly" unless defined $uval ;
 
-        {
+        if( eval "defined \$${pkg}::$uname" ) { 
+            carp "Cannot change readonly scalar `\$$name'" ;
+        }
+        else {
             no strict 'vars' ;
             eval "*${pkg}::$uname=\\$uval" ;
+            carp "Failed to create readonly scalar `\$$name'" 
+            unless eval "defined \$${pkg}::$uname" ; 
         }
     }
 }
@@ -80,13 +83,13 @@ readonly - Perl pragma to declare readonly scalars
 
 =head1 SYNOPSIS
 
-    use readonly '$READONLY' => 57 ;
-    use readonly '$TOPIC'    => 'computing' ;
-    use readonly '$TRUE'     => 1 ;
-    use readonly '$FALSE'    => 0 ;
-    use readonly '$PI'       => 4 * atan2 1, 1 ;
+    use readonly 
+            '$READONLY' => 57,
+            '$TOPIC'    => 'computing',
+            '$TRUE'     => 1,
+            '$FALSE'    => 0,
+            '$PI'       => 4 * atan2( 1, 1 ),
 
-    use readonly
             '$ALPHA'    => 1.761,
             '$BETA'     => 2.814,
             '$GAMMA'    => 4.012,
@@ -94,11 +97,9 @@ readonly - Perl pragma to declare readonly scalars
             '$EXE'      => '/usr/local/bin/lout',
             ;
 
-    use readonly '$BASE' => '/usr/opt/mozilla' ;
     # Have to use a separate readonly if we refer back.
     use readonly
-            '$RC'   => "$BASE/config",
-            '$EXE'  => "$BASE/bin",
+            '$RC'   => "$EXE/config",
             ;
 
 =head1 DESCRIPTION
@@ -115,12 +116,16 @@ However C<constant>s must be used with different syntax in different contexts,
 whereas C<readonly>s can be used with the same consistent scalar syntax
 throughout.
 
-=head2 String interpolation
+=head2 String Interpolation
 
     use constant PI    => 4 * atan2 1, 1 ;
     use readonly '$PI' => 4 * atan2 1, 1 ;
 
-We cannot print C<constant>s directly so we must do this:
+We can print C<readonly>s directly:
+
+    print "The value of pi is $PI\n" ;
+
+But for C<constant>s we must do this:
 
     print "The value of pi is ", PI, "\n" ;
     
@@ -128,11 +133,8 @@ or this:
 
     print "The value of pi is @{[PI]}\n" ;
 
-but we can print C<readonly>s directly:
 
-    print "The value of pi is $PI\n" ;
-
-=head2 Hash keys
+=head2 Hash Keys
 
     use constant TOPIC    => 'geology' ;
     use readonly '$TOPIC' => 'geology' ;
@@ -143,7 +145,11 @@ but we can print C<readonly>s directly:
             biology   => 9,
         ) ;
 
-If we try to access one of the hash elements using the C<constant>:
+Using a C<readonly> scalar we can simply write:
+
+    my $value = $topic{$TOPIC}
+
+However, if we try to access one of the hash elements using the C<constant>:
 
     my $value = $topic{TOPIC} ;
 
@@ -157,25 +163,52 @@ or perhaps:
 
     my $value = $topic{&TOPIC} ;
 
-On the other hand if we use a C<readonly> scalar we can simply write:
+=head2 Error Messages 
 
-    my $value = $topic{$TOPIC}
+=over
 
-with no problems.
+=item C<Modification of a read-only value attempted>
 
-=head2 Error reporting
+Eval trappable fatal error. The reason for this pragma's existence. This will
+occur if you try to assign to a readonly scalar, e.g. C<$PI = 3>, or C<$PI++>.
 
-    PI = 3 ;
+=item C<Using readonly scalar `$SCALAR' instead of bare `SCALAR'>
 
-will lead to a compile-time error, "Can't modify constant item in scalar
-assignment...", whereas
+Warning. The scalar name should begin with a $. (This is to allow the
+possibility of supporting readonly arrays and hashes in the future - if I can
+ever figure out how - suggestions welcome.)
 
-    $PI = 3 ;
+=item C<Cannot change readonly scalar `$SCALAR'>
 
-will lead to a run-time error, "Modification of a read-only value
-attempted...". 
+Warning. This is why we use this pragma in the first place. If you write
+C<use readonly '$SOMESCALAR' =E<gt> 42 ;> somewhere and elsewhere write C<use
+readonly '$SOMESCALAR' =E<gt> 'benji' ;> you will get this warning.
 
-=head2 Is it necessary?
+=item C<usage: use readonly '$SCALAR' => value ; # Don't forget to single quote the
+scalar>
+
+Fatal syntax error. The name of the scalar must be in single quotes, and you
+must separate it from the value with either => or a comma. 
+
+=item C<Readonly scalar `$SCALAR' has no value>
+
+Fatal error. Every scalar must be set to a defined scalar value.
+
+=item C<Cannot make `$SCALAR' readonly>
+
+Fatal error. The name being used contains "illegal" characters or begins with
+two leading underscores or is in this list: 
+
+    BEGIN INIT CHECK END DESTROY AUTOLOAD STDIN STDOUT STDERR ARGV ARGVOUT ENV INC SIG
+
+=item C<Failed to create readonly scalar `$SCALAR'>
+
+Warning. This will occur for example if you try to set the value to be
+C<'abc\'> whose last character, C<\> might be problematic. 
+
+=back
+
+=head2 Do We Need It? 
 
 You can achieve the same effect as:
 
@@ -206,15 +239,12 @@ a compact syntax:
 
 Only copes with scalars.
 
-Strings which contain \'s will have them removed.
+Sometimes with 5.004 when using eval exception handling you get "Use of
+uninitialized value at..." errors; the cure is to write:
 
-Silently ignores attempted redeclarations, e.g.
-
-    use readonly '$READONLY' => 5 ;
-    ...
-    use readonly '$READONLY' => 9 ;
-
-C<$READONLY> is I<still> 5, but no error message is given.
+    eval {
+        $@ = undef ;
+        # rest as normal
 
 =head1 AUTHOR
 

@@ -12,7 +12,7 @@ use strict ;
 use vars qw( $Count ) ;
 $Count = 0 ;
 
-BEGIN { $| = 1 ; print "1..15\n" ; }
+BEGIN { $| = 1 ; print "1..16\n" ; }
 
 use vars qw( $DEBUG $TRIMWIDTH ) ;
 $DEBUG     = shift || 0 ;
@@ -20,7 +20,7 @@ $TRIMWIDTH = shift || 250 ;
 
 eval {
     $@ = undef ;
-    use readonly 1.01 ; # Version check.
+    use readonly 1.02 ; # Version check.
 } ;
 report( 'version', 0, $@, __LINE__ ) ;
 
@@ -101,6 +101,59 @@ eval {
     die "$D != 4" if $D != 4 ;
 } ;
 report( 'readonly', 0, $@, __LINE__ ) ;
+
+
+eval {
+    $@ = undef ;
+    use readonly '$PATH' => '/usr/opt' ;
+    use readonly '$EXE'  => "$PATH/bin" ;
+    die "\$PATH ne '/usr/opt'"    if $PATH ne '/usr/opt' ;
+    die "\$EXE ne '/usr/opt/bin'" if $EXE ne '/usr/opt/bin' ;
+} ;
+report( 'readonly', 0, $@, __LINE__ ) ;
+
+
+
+#eval {
+#    use readonly 
+#            '$A1' => 'A1',
+#            '$M1' => 'M1',
+#            '$M4' => 'M4',
+#            '$M5'
+#            ;
+#} ;
+#report( 'readonly', 1, $@, __LINE__ ) ;
+
+
+#eval {
+#    $@ = undef ;
+#    use readonly '$QQ' => 'abc\\' ; 
+#    # $QQ is NOT created.
+#} ;
+#report( 'readonly', 0, $@, __LINE__ ) ;
+
+#eval {
+#    $@ = undef ;
+#    use readonly '$EXE'  => "/usr/bin" ;
+#} ;
+#report( 'redefinition', 1, $@, __LINE__ ) ;
+
+#eval {
+#    use readonly '$R' ;
+#} ;
+#report( 'novalue', 1, $@, __LINE__ ) ;
+
+#eval {
+#    $@ = undef ;
+#    use readonly 'R' => 99 ;
+#} ;
+#report( 'no dollar', 1, $@, __LINE__ ) ;
+
+#eval {
+#    use readonly '$ARGV' => 99 ;
+#} ;
+#report( '$ARGV', 1, $@, __LINE__ ) ;
+
 
 
 
